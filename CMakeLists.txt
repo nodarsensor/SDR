@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(fdr)
 
+# opencv installed by homebrews
+set(OpenCV_DIR "/usr/local/Cellar/opencv@3/3.4.12/share/OpenCV")
+
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
