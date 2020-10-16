@@ -228,6 +228,63 @@ void KITTI(const std::string inputDir, const std::string outputDir,
               << std::endl;
 }
 
+/**
+ * Processing NODAR
+ */
+void NODAR(const std::string inputDir, const std::string outputDir,
+    const Options& options) {
+    Parameters params = options.params;
+
+    int max_disp = options.ndisp;
+
+    cv::Mat im0, disp_WTA_u16, disp_WTA;
+
+    auto c0 = std::chrono::steady_clock::now();
+
+    // TODO: Check number of files in the directory or loop over all!
+    for (int i = 0; i < 5; i++) {
+        std::cout << "--------------------------------------------"
+                  << std::endl;
+        std::cout << "processing: " + cv::format("nodar_%04d.png", i) << std::endl;
+
+        im0 = cv::imread(inputDir + "image_2/" + cv::format("nodar_%04d.png", i));
+        if (im0.empty()) {
+            printf("Color reference image not found in\n");
+            printf("%s\n", inputDir.c_str());
+            return;
+        };
+        disp_WTA_u16 =
+            cv::imread(inputDir + "disp_WTA/" + cv::format("nodar_%04d.png", i),
+                       CV_LOAD_IMAGE_UNCHANGED);
+        if (disp_WTA_u16.empty()) {
+            printf("WTA disparity map not found in\n");
+            printf("%s\n", inputDir.c_str());
+            return;
+        };
+
+        // disp_WTA_u16.convertTo(disp_WTA, CV_32FC1, 1/256.0);
+        disp_WTA_u16.convertTo(disp_WTA, CV_32FC1);
+        preprocess_disp(disp_WTA, max_disp);
+
+        FastDR* fdr = new FastDR(im0, disp_WTA, params, max_disp, 0);
+
+        cv::Mat labeling, refined_disp;
+        fdr->run(labeling, refined_disp);
+
+        refined_disp.convertTo(disp_WTA_u16, CV_16UC1, 256);
+
+        cv::imwrite(outputDir + cv::format("noder_%04d.png", i), disp_WTA_u16);
+
+        delete fdr;
+    }
+
+    auto c1 = std::chrono::steady_clock::now();
+    std::cout << "Total time consumed: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(c1 - c0) .count()
+              << std::endl;
+}
+
+
 int main(int argc, const char** args) {
     std::cout << "----------- parameter settings -----------" << std::endl;
     ArgsParser parser(argc, args);
@@ -255,6 +312,12 @@ int main(int argc, const char** args) {
             "This mode assumes pre-computed WTA disparity maps in "
             "targetDir.\n");
         KITTI(options.targetDir + "/", options.outputDir + "/", options);
+    } else if (options.mode == "NODAR") {
+        printf("Running by NODAR mode.\n");
+        printf(
+            "This mode assumes pre-computed WTA disparity maps in "
+            "targetDir.\n");
+        NODAR(options.targetDir + "/", options.outputDir + "/", options);
     } else {
         printf("Specify the following arguments:\n");
         printf("  -mode [MiddV3, KITTI]\n");
