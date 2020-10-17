@@ -242,8 +242,8 @@ void NODAR(const std::string inputDir, const std::string outputDir,
     auto c0 = std::chrono::steady_clock::now();
 
     // TODO: Check number of files in the directory or loop over all!
-    for (int i = 0; i < 531; i++) {
-        
+    for (int i = 0; i < 389; i++) {
+
         auto filename = cv::format("nodar_%04d.png", i);
         
         std::cout << "--------------------------------------------"
@@ -276,7 +276,7 @@ void NODAR(const std::string inputDir, const std::string outputDir,
 
         refined_disp.convertTo(disp_WTA_u16, CV_16UC1, 256);
 
-        cv::imwrite(outputDir + cv::format("noder_%04d.png", i), disp_WTA_u16);
+        cv::imwrite(outputDir + cv::format("nodar_%04d.png", i), disp_WTA_u16);
 
         delete fdr;
     }
