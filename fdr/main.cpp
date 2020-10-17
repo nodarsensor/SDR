@@ -242,19 +242,22 @@ void NODAR(const std::string inputDir, const std::string outputDir,
     auto c0 = std::chrono::steady_clock::now();
 
     // TODO: Check number of files in the directory or loop over all!
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 531; i++) {
+        
+        auto filename = cv::format("nodar_%04d.png", i);
+        
         std::cout << "--------------------------------------------"
                   << std::endl;
-        std::cout << "processing: " + cv::format("nodar_%04d.png", i) << std::endl;
+        std::cout << "processing: " + filename << std::endl;
 
-        im0 = cv::imread(inputDir + "image_2/" + cv::format("nodar_%04d.png", i));
+        im0 = cv::imread(inputDir + "left_images/" + filename);
         if (im0.empty()) {
             printf("Color reference image not found in\n");
             printf("%s\n", inputDir.c_str());
             return;
         };
         disp_WTA_u16 =
-            cv::imread(inputDir + "disp_WTA/" + cv::format("nodar_%04d.png", i),
+            cv::imread(inputDir + "disparity/" + filename,
                        CV_LOAD_IMAGE_UNCHANGED);
         if (disp_WTA_u16.empty()) {
             printf("WTA disparity map not found in\n");
