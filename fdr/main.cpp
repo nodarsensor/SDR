@@ -105,62 +105,6 @@ bool loadData(const std::string inputDir, cv::Mat& im0, cv::Mat& disp_WTA, cv::M
 }
 
 /**
- * Processing Middlebury
- */
-void MidV3(const std::string inputDir, const std::string outputDir, const Options& options)
-{
-    Parameters params = options.params;
-
-	cv::Mat im0, disp_WTA, dispGT, nonocc;
-	Calib calib;
-
-	calib.ndisp = options.ndisp;
-        if (!loadData(inputDir, im0, disp_WTA, dispGT, nonocc, calib))
-            return;
-	printf("ndisp = %d\n", calib.ndisp);
-	
-	int maxdisp = calib.ndisp;
-	double errorThresh = 1.0;
-	if (cvutils::contains(inputDir, "trainingQ") || cvutils::contains(inputDir, "testQ"))
-		errorThresh = errorThresh / 2.0;
-	else if (cvutils::contains(inputDir, "trainingF") || cvutils::contains(inputDir, "testF"))
-		errorThresh = errorThresh * 2.0;
-
-	{
-#ifdef _WIN32
-        _mkdir((outputDir + "debug").c_str());
-#elif defined __linux__ || defined __APPLE__
-        mkdir((outputDir + "debug").c_str(), 0755);
-#endif
-
-        Evaluator* eval =
-            new Evaluator(dispGT, nonocc, "result", outputDir + "debug/");
-        eval->setErrorThreshold(errorThresh);
-        eval->start();
-
-        FastDR fdr(im0, disp_WTA, params, maxdisp, 0);
-
-        cv::Mat labeling, refined_disp;
-        fdr.run(labeling, refined_disp);
-
-        cvutils::io::save_pfm_file(outputDir + "disp0FDR.pfm",
-                                   refined_disp);
-
-        {
-            FILE* fp = fopen((outputDir + "timeFDR.txt").c_str(), "w");
-            if (fp != nullptr) {
-                fprintf(fp, "%lf\n", eval->getCurrentTime());
-                fclose(fp);
-            }
-        }
-        if (cvutils::contains(inputDir, "training"))
-            eval->evaluate(refined_disp, true, true);
-
-        delete eval;
-    }
-}
-
-/**
  * Update the invalid disparity (0 value) to a random disparity from
  * (1,max_disp)
  */
@@ -174,65 +118,10 @@ void preprocess_disp(cv::Mat& disp_WTA, const int max_disp) {
 }
 
 /**
- * Processing KITTI
- */
-void KITTI(const std::string inputDir, const std::string outputDir,
-	const Options& options) {
-    Parameters params = options.params;
-
-    int max_disp = options.ndisp;
-
-    cv::Mat im0, disp_WTA_u16, disp_WTA;
-
-    auto c0 = std::chrono::steady_clock::now();
-
-    for (int i = 0; i < 200; i++) {
-        std::cout << "--------------------------------------------"
-                  << std::endl;
-        std::cout << "processing: " + cv::format("%06d_10.png", i) << std::endl;
-
-        im0 = cv::imread(inputDir + "image_2/" + cv::format("%06d_10.png", i));
-        if (im0.empty()) {
-            printf("Color reference image not found in\n");
-            printf("%s\n", inputDir.c_str());
-            return;
-        };
-        disp_WTA_u16 =
-            cv::imread(inputDir + "disp_WTA/" + cv::format("%06d_10.png", i),
-                       CV_LOAD_IMAGE_UNCHANGED);
-        if (disp_WTA_u16.empty()) {
-            printf("WTA disparity map not found in\n");
-            printf("%s\n", inputDir.c_str());
-            return;
-        };
-
-        // disp_WTA_u16.convertTo(disp_WTA, CV_32FC1, 1/256.0);
-        disp_WTA_u16.convertTo(disp_WTA, CV_32FC1);
-        preprocess_disp(disp_WTA, max_disp);
-
-        FastDR* fdr = new FastDR(im0, disp_WTA, params, max_disp, 0);
-
-        cv::Mat labeling, refined_disp;
-        fdr->run(labeling, refined_disp);
-
-        refined_disp.convertTo(disp_WTA_u16, CV_16UC1, 256);
-
-        cv::imwrite(outputDir + cv::format("%06d_10.png", i), disp_WTA_u16);
-
-        delete fdr;
-    }
-
-    auto c1 = std::chrono::steady_clock::now();
-    std::cout << "Total time consumed: "
-              << std::chrono::duration_cast<std::chrono::microseconds>(c1 - c0) .count()
-              << std::endl;
-}
-
-/**
  * Processing NODAR
  */
-void NODAR(const std::string inputDir, const std::string outputDir,
-    const Options& options) {
+void NODAR(const std::string imagePath, const std::string disparityPath, const std::string outputPath,
+    const SingleFileOptions& options) {
     Parameters params = options.params;
 
     int max_disp = options.ndisp;
@@ -241,45 +130,35 @@ void NODAR(const std::string inputDir, const std::string outputDir,
 
     auto c0 = std::chrono::steady_clock::now();
 
-    // TODO: Check number of files in the directory or loop over all!
-    for (int i = 0; i < 389; i++) {
+    im0 = cv::imread(imagePath);
+    if (im0.empty()) {
+        printf("Color reference image not found in\n");
+        printf("%s\n", imagePath.c_str());
+        return;
+    };
+    disp_WTA_u16 =
+        cv::imread(disparityPath,
+                   CV_LOAD_IMAGE_UNCHANGED);
+    if (disp_WTA_u16.empty()) {
+        printf("WTA disparity map not found in\n");
+        printf("%s\n", disparityPath.c_str());
+        return;
+    };
 
-        auto filename = cv::format("nodar_%04d.png", i);
-        
-        std::cout << "--------------------------------------------"
-                  << std::endl;
-        std::cout << "processing: " + filename << std::endl;
+    // disp_WTA_u16.convertTo(disp_WTA, CV_32FC1, 1/256.0);
+    disp_WTA_u16.convertTo(disp_WTA, CV_32FC1);
+    preprocess_disp(disp_WTA, max_disp);
 
-        im0 = cv::imread(inputDir + "left_images/" + filename);
-        if (im0.empty()) {
-            printf("Color reference image not found in\n");
-            printf("%s\n", inputDir.c_str());
-            return;
-        };
-        disp_WTA_u16 =
-            cv::imread(inputDir + "disparity/" + filename,
-                       CV_LOAD_IMAGE_UNCHANGED);
-        if (disp_WTA_u16.empty()) {
-            printf("WTA disparity map not found in\n");
-            printf("%s\n", inputDir.c_str());
-            return;
-        };
+    FastDR* fdr = new FastDR(im0, disp_WTA, params, max_disp, 0);
 
-        // disp_WTA_u16.convertTo(disp_WTA, CV_32FC1, 1/256.0);
-        disp_WTA_u16.convertTo(disp_WTA, CV_32FC1);
-        preprocess_disp(disp_WTA, max_disp);
+    cv::Mat labeling, refined_disp;
+    fdr->run(labeling, refined_disp);
 
-        FastDR* fdr = new FastDR(im0, disp_WTA, params, max_disp, 0);
+    refined_disp.convertTo(disp_WTA_u16, CV_16UC1, 256);
 
-        cv::Mat labeling, refined_disp;
-        fdr->run(labeling, refined_disp);
+    cv::imwrite(outputPath, disp_WTA_u16);
 
-        refined_disp.convertTo(disp_WTA_u16, CV_16UC1, 256);
-
-        cv::imwrite(outputDir + cv::format("nodar_%04d.png", i), disp_WTA_u16);
-
-        delete fdr;
-    }
+    delete fdr;
 
     auto c1 = std::chrono::steady_clock::now();
     std::cout << "Total time consumed: "
@@ -291,42 +170,11 @@ void NODAR(const std::string inputDir, const std::string outputDir,
 int main(int argc, const char** args) {
     std::cout << "----------- parameter settings -----------" << std::endl;
     ArgsParser parser(argc, args);
-    Options options;
+    SingleFileOptions options;
 
     options.loadOptionValues(parser);
 
-    if (options.outputDir.length()) {
-#ifdef _WIN32
-        _mkdir((options.outputDir).c_str());
-#elif defined __linux__ || defined __APPLE__
-        mkdir((options.outputDir).c_str(), 0755);
-#endif
-    }
-
-    if (options.mode == "MiddV3") {
-        printf("Running by Middlebury V3 mode.\n");
-        printf(
-            "This mode assumes MC-CNN matching cost files im0.acrt or WTA "
-            "disparities of the cost disp_WTA.pfm in targetDir.\n");
-        MidV3(options.targetDir + "/", options.outputDir + "/", options);
-    } else if (options.mode == "KITTI") {
-        printf("Running by KITTI mode.\n");
-        printf(
-            "This mode assumes pre-computed WTA disparity maps in "
-            "targetDir.\n");
-        KITTI(options.targetDir + "/", options.outputDir + "/", options);
-    } else if (options.mode == "NODAR") {
-        printf("Running by NODAR mode.\n");
-        printf(
-            "This mode assumes pre-computed WTA disparity maps in "
-            "targetDir.\n");
-        NODAR(options.targetDir + "/", options.outputDir + "/", options);
-    } else {
-        printf("Specify the following arguments:\n");
-        printf("  -mode [MiddV3, KITTI]\n");
-        printf("  -targetDir [PATH_TO_IMAGE_DIR]\n");
-        printf("  -outputDir [PATH_TO_OUTPUT_DIR]\n");
-    }
+    NODAR(options.imagePath, options.disparityPath, options.outputPath, options);
 
     return 0;
 }
