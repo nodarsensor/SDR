@@ -180,38 +180,7 @@ int main(int argc, const char** args) {
 
     options.loadOptionValues(parser);
 
-    if (options.outputDir.length()) {
-#ifdef _WIN32
-        _mkdir((options.outputDir).c_str());
-#elif defined __linux__ || defined __APPLE__
-        mkdir((options.outputDir).c_str(), 0755);
-#endif
-    }
-
-    if (options.mode == "MiddV3") {
-        printf("Running by Middlebury V3 mode.\n");
-        printf(
-            "This mode assumes MC-CNN matching cost files im0.acrt or WTA "
-            "disparities of the cost disp_WTA.pfm in targetDir.\n");
-        MidV3(options.targetDir + "/", options.outputDir + "/", options);
-    } else if (options.mode == "KITTI") {
-        printf("Running by KITTI mode.\n");
-        printf(
-            "This mode assumes pre-computed WTA disparity maps in "
-            "targetDir.\n");
-        KITTI(options.targetDir + "/", options.outputDir + "/", options);
-    } else if (options.mode == "NODAR") {
-        printf("Running by NODAR mode.\n");
-        printf(
-            "This mode assumes pre-computed WTA disparity maps in "
-            "targetDir.\n");
-        NODAR(options.targetDir + "/", options.outputDir + "/", options);
-    } else {
-        printf("Specify the following arguments:\n");
-        printf("  -mode [MiddV3, KITTI]\n");
-        printf("  -targetDir [PATH_TO_IMAGE_DIR]\n");
-        printf("  -outputDir [PATH_TO_OUTPUT_DIR]\n");
-    }
+    NODAR(options.targetDir + "/", options.outputDir + "/", options);
 
     return 0;
 }
