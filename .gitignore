@@ -3,3 +3,5 @@ results
 .DS_Store
 data/KITTI
 data/MiddV3
+junk
+*.ply
