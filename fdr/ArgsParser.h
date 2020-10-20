@@ -107,6 +107,39 @@ struct Options {
     }
 };
 
+struct SingleFileOptions {
+    std::string mode = "";
+    std::string imagePath = "";
+    std::string disparityPath = "";
+    std::string outputPath = "";
+
+    int ndisp;
+    double gamma;
+    double lambda;
+    double inlier_ratio;
+    double seg_k;
+    bool use_swap;
+
+    Parameters params;
+
+    void loadOptionValues(ArgsParser& argParser) {
+        argParser.TryGetArgment("imagePath", imagePath);
+        argParser.TryGetArgment("disparityPath", disparityPath);
+        argParser.TryGetArgment("outputPath", outputPath);
+        argParser.TryGetArgment("mode", mode);
+
+        argParser.TryGetArgment("ndisp", ndisp);
+
+        if (argParser.TryGetArgment("gamma", gamma)) params.gamma = gamma;
+        if (argParser.TryGetArgment("lambda", lambda)) params.lambda = lambda;
+        if (argParser.TryGetArgment("inlier_ratio", inlier_ratio))
+            params.minimum_inlier_rate = inlier_ratio;
+        if (argParser.TryGetArgment("seg_k", seg_k)) params.seg_k = seg_k;
+        if (argParser.TryGetArgment("use_swap", use_swap))
+            params.use_swap = use_swap;
+    }
+};
+
 struct Calib
 {
 	float cam0[3][3];

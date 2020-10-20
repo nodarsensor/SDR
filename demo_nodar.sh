@@ -1,0 +1,1 @@
+build/bin/fdr -imagePath data/example/left_image.png -disparityPath data/example/disparity.png -outputPath data/example/sdr_result.png -lambda 0.30 -seg_k 80.0 -inlier_ratio 0.50 -ndisp 256 -use_swap false
